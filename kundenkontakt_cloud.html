@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Kundenkontakt – Flammpunkt</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222222;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f0;
+    --text2: #888;
+    --text3: #555;
+    --green: #2ecc8a;
+    --green-bg: rgba(46,204,138,0.12);
+    --amber: #f0a500;
+    --amber-bg: rgba(240,165,0,0.12);
+    --red: #e05555;
+    --red-bg: rgba(224,85,85,0.12);
+    --blue: #4a9eff;
+    --blue-bg: rgba(74,158,255,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  #loading-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; z-index: 999;
+  }
+  .loader-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text3); display: inline-block;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .loader-dot:nth-child(2) { animation-delay: 0.2s; margin: 0 6px; }
+  .loader-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }
+  .loader-text { font-size: 13px; color: var(--text3); margin-top: 16px; font-family: 'DM Mono', monospace; }
+
+  .topbar {
+    padding: 18px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; background: var(--bg); z-index: 100;
+  }
+  .topbar h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .topbar-sub { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 1px; }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); margin-right: 6px; display: inline-block; }
+  .sync-dot.synced { background: var(--green); }
+  .sync-dot.syncing { background: var(--amber); animation: pulse 1s infinite; }
+  .sync-row { display: flex; align-items: center; }
+  .sync-label { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; }
+  .count-pill { background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 3px 10px; font-size: 12px; color: var(--text2); font-family: 'DM Mono', monospace; }
+
+  .tabs { display: flex; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex-shrink: 0; padding: 7px 14px; font-size: 13px; font-family: 'DM Sans', sans-serif; border: 1px solid var(--border2); border-radius: 20px; background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .tab.active { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 500; }
+
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  .search-box { position: relative; margin-bottom: 14px; }
+  .search-box input { width: 100%; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 12px 10px 36px; font-size: 14px; color: var(--text); font-family: 'DM Sans', sans-serif; outline: none; }
+  .search-box input:focus { border-color: rgba(255,255,255,0.25); }
+  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 15px; pointer-events: none; }
+
+  .filter-row { display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-btn { flex-shrink: 0; padding: 5px 12px; font-size: 12px; border: 1px solid var(--border2); border-radius: 20px; background: transparent; color: var(--text2); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .filter-btn.active { background: var(--surface2); color: var(--text); border-color: var(--border2); font-weight: 500; }
+
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin: 4px 0 10px; font-family: 'DM Mono', monospace; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 14px; margin-bottom: 8px; transition: border-color 0.15s; }
+  .card:hover { border-color: var(--border2); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .card-name { font-size: 14px; font-weight: 500; color: var(--text); flex: 1; margin-right: 8px; }
+  .card-date { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; white-space: nowrap; }
+  .badges { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 7px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; border: 1px solid transparent; }
+  .b-telefon { background: var(--blue-bg); color: var(--blue); border-color: rgba(74,158,255,0.25); }
+  .b-vorort { background: var(--green-bg); color: var(--green); border-color: rgba(46,204,138,0.25); }
+  .b-laden { background: var(--amber-bg); color: var(--amber); border-color: rgba(240,165,0,0.25); }
+  .b-mail { background: rgba(180,130,255,0.12); color: #b482ff; border-color: rgba(180,130,255,0.25); }
+  .b-gray { background: var(--surface2); color: var(--text2); border-color: var(--border2); }
+  .b-offen { background: var(--amber-bg); color: var(--amber); border-color: rgba(240,165,0,0.3); }
+  .b-erledigt { background: var(--green-bg); color: var(--green); border-color: rgba(46,204,138,0.25); }
+  .card-thema { font-size: 13px; color: var(--text2); margin-bottom: 5px; line-height: 1.4; }
+  .card-next { font-size: 13px; color: var(--text); padding-left: 8px; border-left: 2px solid var(--green); line-height: 1.4; }
+  .card-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .action-btn { flex: 1; padding: 6px; font-size: 12px; border: 1px solid var(--border2); border-radius: var(--radius-sm); background: transparent; color: var(--text2); cursor: pointer; text-align: center; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+  .action-btn:hover { background: var(--surface2); color: var(--text); }
+  .action-btn.done { background: var(--green-bg); color: var(--green); border-color: rgba(46,204,138,0.3); }
+  .del-btn { background: none; border: none; color: var(--text3); font-size: 18px; cursor: pointer; padding: 0 2px; transition: color 0.15s; flex-shrink: 0; line-height: 1; }
+  .del-btn:hover { color: var(--red); }
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--text3); font-size: 14px; line-height: 1.7; }
+
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 15px; color: var(--text); font-family: 'DM Sans', sans-serif; outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: rgba(255,255,255,0.3); }
+  .form-group select option { background: #222; }
+  .form-group textarea { resize: none; height: 80px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn-save { width: 100%; padding: 13px; font-size: 15px; font-weight: 600; background: var(--text); color: var(--bg); border: none; border-radius: var(--radius-sm); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.15s; margin-top: 4px; }
+  .btn-save:active { opacity: 0.75; }
+
+  .info-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .info-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .info-card p { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 6px; }
+  .url-box { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 12px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--blue); word-break: break-all; margin: 8px 0; }
+  .btn-copy { width: 100%; padding: 10px; font-size: 13px; font-weight: 500; background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(74,158,255,0.3); border-radius: var(--radius-sm); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.15s; margin-top: 4px; }
+  .btn-copy:active { opacity: 0.7; }
+  .platform-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+  .ptab { flex: 1; padding: 7px 6px; font-size: 12px; border: 1px solid var(--border2); border-radius: 20px; background: transparent; color: var(--text2); cursor: pointer; text-align: center; font-family: 'DM Sans', sans-serif; }
+  .ptab.active { background: var(--surface2); color: var(--text); font-weight: 500; }
+  .platform-content { display: none; }
+  .platform-content.active { display: block; }
+  .step { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+  .step-num { width: 22px; height: 22px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--text2); flex-shrink: 0; margin-top: 1px; }
+  .step-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  .step-text strong { color: var(--text); }
+  .hint { font-size: 11px; color: var(--text3); margin-top: 5px; }
+
+  .offen-banner { background: var(--amber-bg); border: 1px solid rgba(240,165,0,0.25); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: var(--amber); }
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div><span class="loader-dot"></span><span class="loader-dot"></span><span class="loader-dot"></span></div>
+  <div class="loader-text">Memos werden geladen...</div>
+</div>
+
+<div id="app" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1>Kundenkontakt</h1>
+      <div class="topbar-sub" id="today-label"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+      <span class="count-pill" id="count-badge">0 Memos</span>
+      <div class="sync-row">
+        <span class="sync-dot synced" id="sync-dot"></span>
+        <span class="sync-label" id="sync-label">Gespeichert</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showPage('verlauf')">Verlauf</button>
+    <button class="tab" onclick="showPage('neu')">+ Neu</button>
+    <button class="tab" onclick="showPage('info')">📱 Link</button>
+  </div>
+
+  <!-- VERLAUF -->
+  <div id="page-verlauf" class="page active">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Kunde suchen..." oninput="renderVerlauf()" />
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setFilter('alle')">Alle</button>
+      <button class="filter-btn" onclick="setFilter('offen')">Offen</button>
+      <button class="filter-btn" onclick="setFilter('Telefon')">Telefon</button>
+      <button class="filter-btn" onclick="setFilter('Vor Ort')">Vor Ort</button>
+      <button class="filter-btn" onclick="setFilter('Laden')">Laden</button>
+      <button class="filter-btn" onclick="setFilter('Mail')">Mail</button>
+    </div>
+    <div id="offen-banner" style="display:none;"></div>
+    <div class="section-label" id="list-label">Alle Einträge</div>
+    <div id="verlauf-list"></div>
+  </div>
+
+  <!-- NEU -->
+  <div id="page-neu" class="page">
+    <div class="form-card">
+      <div class="section-label" style="margin-top:0;">Neues Memo</div>
+      <div class="form-group"><label>Kundenname</label><input type="text" id="m-kunde" placeholder="Vor- und Nachname" /></div>
+      <div class="row2">
+        <div class="form-group"><label>Datum</label><input type="date" id="m-datum" /></div>
+        <div class="form-group"><label>Art</label>
+          <select id="m-art">
+            <option>Telefon</option>
+            <option>Vor Ort</option>
+            <option>Laden</option>
+            <option>Mail</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Thema / Was wurde besprochen?</label><textarea id="m-thema" placeholder="z.B. Wartung Pelletofen, Termin für KW22 vereinbart, Ersatzteil bestellt..."></textarea></div>
+      <div class="form-group"><label>Nächster Schritt</label><input type="text" id="m-next" placeholder="z.B. Termin eintragen lassen, Angebot senden..." /></div>
+      <button class="btn-save" onclick="saveMemo()">Memo speichern</button>
+    </div>
+  </div>
+
+  <!-- INFO -->
+  <div id="page-info" class="page">
+    <div class="info-card">
+      <h3>🔗 Dein persönlicher Link</h3>
+      <p>Öffne diesen Link auf jedem Gerät – alle Memos sind sofort synchronisiert.</p>
+      <div class="url-box" id="current-url">Wird geladen...</div>
+      <button class="btn-copy" onclick="copyLink()">Link kopieren</button>
+      <p id="copy-confirm" style="font-size:12px;color:var(--green);margin-top:6px;display:none;">✓ Link kopiert!</p>
+    </div>
+
+    <div class="info-card">
+      <h3>📱 Schnellzugriff einrichten</h3>
+      <div class="platform-tabs">
+        <button class="ptab active" onclick="showPlatform('ios')">iPhone / iPad</button>
+        <button class="ptab" onclick="showPlatform('android')">Android</button>
+        <button class="ptab" onclick="showPlatform('windows')">Windows</button>
+      </div>
+      <div class="platform-content active" id="plat-ios">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Link in <strong>Safari</strong> öffnen</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Unten auf das <strong>Teilen-Symbol</strong> tippen</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>"Zum Home-Bildschirm"</strong> wählen</div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Name bestätigen → <strong>Hinzufügen</strong></div></div>
+        <p class="hint">In Chrome: Menü (···) → "Zum Startbildschirm hinzufügen"</p>
+      </div>
+      <div class="platform-content" id="plat-android">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Link in <strong>Chrome</strong> öffnen</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Oben rechts <strong>drei Punkte</strong> tippen</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>"Zum Startbildschirm hinzufügen"</strong></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Bestätigen → App-Icon auf dem Homescreen</div></div>
+      </div>
+      <div class="platform-content" id="plat-windows">
+        <div class="step"><div class="step-num">1</div><div class="step-text">Link in <strong>Chrome</strong> öffnen</div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-text">Oben rechts <strong>drei Punkte (⋮)</strong> klicken</div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-text"><strong>"Als App installieren"</strong></div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-text">Erscheint im <strong>Startmenü</strong> als eigenständige App</div></div>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <h3>☁️ Synchronisation</h3>
+      <p>Deine Memos werden automatisch gespeichert. Der grüne Punkt oben rechts zeigt: alles synchronisiert ✓</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const SK = 'flammpunkt_memos_cloud';
+let entries = [];
+let activeFilter = 'alle';
+let saveTimeout = null;
+
+function setSyncStatus(s) {
+  document.getElementById('sync-dot').className = 'sync-dot ' + s;
+  document.getElementById('sync-label').textContent = s==='synced'?'Gespeichert':s==='syncing'?'Speichert...':'Offline';
+}
+
+async function load() {
+  try {
+    const r = await window.storage.get(SK);
+    if (r && r.value) entries = JSON.parse(r.value);
+  } catch(e) {
+    try { const raw = localStorage.getItem(SK); if(raw) entries = JSON.parse(raw); } catch(e2) { entries = []; }
+  }
+  updateBadge(); renderVerlauf();
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+async function saveData() {
+  setSyncStatus('syncing');
+  try {
+    await window.storage.set(SK, JSON.stringify(entries));
+    setSyncStatus('synced');
+  } catch(e) {
+    try { localStorage.setItem(SK, JSON.stringify(entries)); setSyncStatus('synced'); } catch(e2) { setSyncStatus('offline'); }
+  }
+  try { localStorage.setItem(SK+'_backup', JSON.stringify(entries)); } catch(e) {}
+}
+
+function debounceSave() {
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(saveData, 500);
+}
+
+function saveMemo() {
+  const kunde = document.getElementById('m-kunde').value.trim();
+  const datum = document.getElementById('m-datum').value;
+  const art = document.getElementById('m-art').value;
+  const thema = document.getElementById('m-thema').value.trim();
+  const next = document.getElementById('m-next').value.trim();
+  if (!kunde || !thema) { alert('Bitte Kundenname und Thema ausfüllen.'); return; }
+  entries.unshift({ id: Date.now(), kunde, datum: datum||today(), art, thema, next, erledigt: false });
+  debounceSave(); updateBadge();
+  document.getElementById('m-kunde').value = '';
+  document.getElementById('m-thema').value = '';
+  document.getElementById('m-next').value = '';
+  showPage('verlauf');
+}
+
+function toggleErledigt(id) {
+  const e = entries.find(x => x.id === id);
+  if (e) { e.erledigt = !e.erledigt; debounceSave(); renderVerlauf(); }
+}
+
+function delEntry(id) {
+  entries = entries.filter(e => e.id !== id);
+  debounceSave(); updateBadge(); renderVerlauf();
+}
+
+function updateBadge() {
+  document.getElementById('count-badge').textContent = entries.length + ' Memo' + (entries.length !== 1 ? 's' : '');
+}
+
+function setFilter(f) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach((b,i) => {
+    const filters = ['alle','offen','Telefon','Vor Ort','Laden','Mail'];
+    b.classList.toggle('active', filters[i] === f);
+  });
+  renderVerlauf();
+}
+
+function today() { return new Date().toISOString().split('T')[0]; }
+function fd(s) { if(!s)return''; const[y,m,d]=s.split('-'); return d+'.'+m+'.'+y; }
+
+function artClass(a) {
+  if(a==='Telefon')return'b-telefon';
+  if(a==='Vor Ort')return'b-vorort';
+  if(a==='Laden')return'b-laden';
+  return 'b-mail';
+}
+
+function renderVerlauf() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  let filtered = entries.filter(e => {
+    const matchSearch = !search || e.kunde.toLowerCase().includes(search) || e.thema.toLowerCase().includes(search);
+    const matchFilter = activeFilter==='alle' || activeFilter==='offen'
+      ? (activeFilter==='alle' || !e.erledigt)
+      : e.art === activeFilter;
+    return matchSearch && matchFilter;
+  });
+
+  const offeneCount = entries.filter(e => !e.erledigt && e.next).length;
+  const banner = document.getElementById('offen-banner');
+  if (offeneCount > 0 && activeFilter === 'alle') {
+    banner.style.display = 'block';
+    banner.innerHTML = '⚠️ ' + offeneCount + ' offene' + (offeneCount===1?' Aufgabe':' Aufgaben') + ' mit nächstem Schritt';
+  } else {
+    banner.style.display = 'none';
+  }
+
+  document.getElementById('list-label').textContent = filtered.length + ' Eintr' + (filtered.length===1?'ag':'äge');
+  const el = document.getElementById('verlauf-list');
+
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty">Keine Einträge gefunden.</div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(e => `
+    <div class="card" id="card-${e.id}">
+      <div class="card-top">
+        <span class="card-name">${e.kunde}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="card-date">${fd(e.datum)}</span>
+          <button class="del-btn" onclick="delEntry(${e.id})">×</button>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge ${artClass(e.art)}">${e.art}</span>
+        <span class="badge ${e.erledigt?'b-erledigt':'b-offen'}">${e.erledigt?'Erledigt':'Offen'}</span>
+      </div>
+      <div class="card-thema">${e.thema}</div>
+      ${e.next ? `<div class="card-next" style="margin-top:6px;">${e.next}</div>` : ''}
+      ${e.next ? `<div class="card-actions">
+        <button class="action-btn${e.erledigt?' done':''}" onclick="toggleErledigt(${e.id})">
+          ${e.erledigt ? '✓ Als offen markieren' : '✓ Als erledigt markieren'}
+        </button>
+      </div>` : ''}
+    </div>
+  `).join('');
+}
+
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  const idx = ['verlauf','neu','info'].indexOf(p);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  if (p==='verlauf') renderVerlauf();
+  if (p==='info') document.getElementById('current-url').textContent = window.location.href;
+  window.scrollTo(0,0);
+}
+
+function showPlatform(p) {
+  document.querySelectorAll('.platform-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.ptab').forEach(el => el.classList.remove('active'));
+  document.getElementById('plat-'+p).classList.add('active');
+  ['ios','android','windows'].indexOf(p);
+  document.querySelectorAll('.ptab')[['ios','android','windows'].indexOf(p)].classList.add('active');
+}
+
+function copyLink() {
+  const url = window.location.href;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => showCopyConfirm());
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = url; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    showCopyConfirm();
+  }
+}
+function showCopyConfirm() {
+  const c = document.getElementById('copy-confirm');
+  c.style.display = 'block';
+  setTimeout(() => c.style.display = 'none', 2000);
+}
+
+const now = new Date();
+document.getElementById('today-label').textContent = now.toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+document.getElementById('m-datum').value = now.toISOString().split('T')[0];
+
+load();
+</script>
+</body>
+</html>
